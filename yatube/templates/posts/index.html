@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Главная страница проекта Yatube
+{% endblock %}
+
+{% block content %}
+  <h1>Последние обновления.</h1>
+  {% for post in page_obj %}
+    <ul>
+      <li> 
+        Автор:
+        <a href="{% url 'posts:profile' post.author.username %}"> {{ post.author.username }}</a>
+      </li>
+      <li>
+        Дата публикации: {{ post.pub_date|date:"d E Y" }}
+      </li>
+    </ul>
+    <p>{{ post.text|linebreaks }}</p>    
+    {% if post.group %}   
+      <a href="{% url 'posts:group_posts' post.group.slug %}">#{{ post.group.title }}</a>
+    {% endif %}
+    {% if not forloop.last %}<hr>{% endif %}
+  {% endfor %}
+  {% include 'posts/includes/paginator.html' %}
+{% endblock %}
