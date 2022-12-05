@@ -87,12 +87,12 @@ class URLSTests(TestCase):
         response = self.authorized_client.get(reverse('posts:post_edit',
                                                       args=['1']))
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'posts/post_create.html')
 
     def test_post_edit_for_authorized_non_author(self):
         response = self.not_author.get(reverse('posts:post_edit',
-                                               args=['1']))
+                                               args=[URLSTests.post.id]))
         self.assertEqual(response.status_code, 302)
-        self.assertTemplateUsed(response, 'posts/post_edit.html')
 
     def test_page_404(self):
         response = self.authorized_client.get('/404/')
