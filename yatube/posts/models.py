@@ -15,7 +15,7 @@ class Group(models.Model):
         verbose_name_plural = 'Группы'
 
     def __str__(self):
-        return self.title
+        return self.title[:15]
 
 
 class Post(models.Model):
@@ -51,7 +51,3 @@ class Post(models.Model):
 
     def __str__(self):
         return self.text[:15]
-        # return (f'Text: {self.text[:30]}, '
-        #         f'Publicated at: {self.pub_date}, '
-        #         f'Author: {self.author.username}, '
-        #         f'Group: {self.group}')

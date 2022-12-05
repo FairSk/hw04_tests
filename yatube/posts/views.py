@@ -2,19 +2,20 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render, redirect
 
-
 from .forms import PostForm
 from .models import Group, Post, User
 
+POSTS_PER_PAGE = 10
+
 
 def pager(request, post_list):
-    return Paginator(post_list, 10).get_page(request.GET.get('page'))
+    return (Paginator(post_list, POSTS_PER_PAGE)
+            .get_page(request.GET.get('page')))
 
 
 def index(request):
-    post = Post.objects.all()
     return render(request, 'posts/index.html', {
-        'page_obj': pager(request, post)
+        'page_obj': pager(request, Post.objects.all())
     })
 
 

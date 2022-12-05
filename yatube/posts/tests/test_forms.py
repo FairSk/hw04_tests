@@ -1,55 +1,59 @@
 from django.test import TestCase, Client
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from ..models import Group, Post
-
-User = get_user_model()
+from ..models import Group, Post, User
 
 
-class TaskFormsTest(TestCase):
+class FormsTest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.user = User.objects.create_user(username='HasNoName')
-        Group.objects.create(
+        cls.group = Group.objects.create(
             title='Тестовый заголовок',
             description='Тестовое описание',
             slug='group-slug'
         )
-        Post.objects.create(
-            author=User.objects.get(username='HasNoName'),
-            text='Текст',
-            group=Group.objects.get(slug='group-slug')
+        cls.anotherGroup = Group.objects.create(
+            title='Другой тестовый заголовок',
+            description='Другое тестовое описание',
+            slug='another-group-slug'
+        )
+        cls.author = User.objects.create(username='Author')
+        cls.not_author = User.objects.create(username='NotAuthor')
+        cls.post = Post.objects.create(
+            text='Тестовый текст',
+            author=FormsTest.author,
+            group=FormsTest.group
         )
 
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
-        self.authorized_client.force_login(self.user)
+        self.not_author = Client()
+        self.authorized_client.force_login(FormsTest.author)
+        self.not_author.force_login(FormsTest.not_author)
 
-    def test_create_post(self):
-        tasks_count = Post.objects.count()
+    def test_create_post_form(self):
+        before_creating = Post.objects.count()
         form_data = {
-            'text': 'Текст из формы'
+            'text': 'Текст для нового поста',
+            'group': FormsTest.group.id
         }
-        response = self.authorized_client.post(
-            reverse('posts:post_create'),
-            data=form_data,
-            follow=True
-        )
-        self.assertEqual(Post.objects.count(), tasks_count + 1)
+        response = (self.authorized_client.post(reverse(
+            'posts:post_create'), data=form_data, follow=True))
+        after_creating = Post.objects.count()
+        self.assertEqual(before_creating + 1, after_creating)
         self.assertEqual(response.status_code, 200)
 
-    def test_edit_post(self):
+    def test_edit_post_form(self):
         form_data = {
-            'text': 'Новый текст из формы'
+            'text': 'Текст для измененного поста',
+            'group': FormsTest.anotherGroup.id
         }
-        self.authorized_client.post(
-            reverse('posts:post_edit', kwargs={'post_id': '1'}),
-            data=form_data,
-            follow=True
-        )
+        (self.authorized_client.post(
+            reverse('posts:post_edit', args=[FormsTest.post.id]),
+            data=form_data, follow=True))
         edited_post = Post.objects.get(id='1')
-        self.assertEqual(edited_post.text, 'Новый текст из формы')
+        self.assertEqual(edited_post.text, 'Текст для измененного поста')
+        self.assertEqual(edited_post.group, FormsTest.anotherGroup)

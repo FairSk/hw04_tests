@@ -1,173 +1,113 @@
-# posts/tests/test_urls.py
 from django.test import TestCase, Client
-from django.contrib.auth import get_user_model
-from django.test import TestCase
 from django.urls import reverse
-from django import forms
 
-from ..models import Group, Post
-
-User = get_user_model()
+from ..models import Group, Post, User
 
 
-class TaskViewsTest(TestCase):
+class ViewsTest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.user = User.objects.create_user(username='HasNoName')
-        Group.objects.create(
+        cls.author = User.objects.create(username='Author')
+        cls.group = Group.objects.create(
             title='Тестовый заголовок',
             description='Тестовое описание',
             slug='group-slug'
         )
-        Post.objects.create(
-            author=User.objects.get(username='HasNoName'),
-            text='Текст',
-            group=Group.objects.get(slug='group-slug')
+        cls.post = Post.objects.create(
+            text='Тестовый текст',
+            author=ViewsTest.author,
+            group=ViewsTest.group
         )
 
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
-        self.authorized_client.force_login(self.user)
+        self.authorized_client.force_login(ViewsTest.author)
 
-    def test_index(self):
-        response = self.guest_client.get(reverse('posts:index'))
-        self.assertTemplateUsed(response, 'posts/index.html',
-                                'Index page use different HTML page')
-
-    def test_group(self):
-        response = self.guest_client.get(reverse('posts:group_posts',
-                                                 kwargs={
-                                                     'slug': 'group-slug'}))
-        self.assertTemplateUsed(response, 'posts/group_list.html',
-                                'Group page use different HTML page')
-
-    def test_profile(self):
-        response = self.guest_client.get(reverse('posts:profile',
-                                                 kwargs={
-                                                     'username': 'HasNoName'}))
-        self.assertTemplateUsed(response, 'posts/profile.html',
-                                'Profile page use different HTML page')
-
-    def test_create(self):
-        response = self.authorized_client.get(reverse('posts:post_create'))
-        self.assertTemplateUsed(response, 'posts/post_create.html',
-                                'Create page use different HTML page')
-
-    def test_post_detail(self):
-        response = self.authorized_client.get(reverse('posts:post_detail',
-                                                      kwargs={
-                                                          'post_id': '1'}))
-        self.assertTemplateUsed(response, 'posts/post_detail.html',
-                                'Posts Detail page use different HTML page')
-
-    def test_post_edit(self):
-        response = self.authorized_client.get(reverse('posts:post_edit',
-                                                      kwargs={
-                                                          'post_id': '1'}))
-        self.assertTemplateUsed(response, 'posts/post_create.html',
-                                'Posts Edit page use different HTML page')
-
-    def test_post_context(self):
+    def test_index_template(self):
         response = self.authorized_client.get(reverse('posts:index'))
-        first_object = response.context['page_obj'][0]
-        author_0 = first_object.author.username
-        test_0 = first_object.text
-        slug_0 = first_object.group.slug
-        self.assertEqual(author_0, 'HasNoName')
-        self.assertEqual(test_0, 'Текст')
-        self.assertEqual(slug_0, 'group-slug')
+        self.assertTemplateUsed(response, 'posts/index.html')
 
-    def test_group_context(self):
-        response = self.authorized_client.get(reverse('posts:group_posts',
-                                                      kwargs={
-                                                          'slug':
-                                                              'group-slug'}))
-        first_object = response.context['page_obj'][0]
-        author_0 = first_object.author.username
-        test_0 = first_object.text
-        slug_0 = first_object.group.slug
-        group = response.context['group'].slug
-        self.assertEqual(group, 'group-slug')
-        self.assertEqual(author_0, 'HasNoName')
-        self.assertEqual(test_0, 'Текст')
-        self.assertEqual(slug_0, 'group-slug')
+    def test_group_list_template(self):
+        response = (self.authorized_client.get(
+            reverse('posts:group_posts', args=[ViewsTest.group.slug])))
+        self.assertTemplateUsed(response, 'posts/group_list.html')
+
+    def test_profile_template(self):
+        response = (self.authorized_client.get(
+            reverse('posts:profile', args=[ViewsTest.author.username])))
+        self.assertTemplateUsed(response, 'posts/profile.html')
+
+    def test_post_detail_template(self):
+        response = (self.authorized_client.get(
+            reverse('posts:post_detail', args=[ViewsTest.post.id])))
+        self.assertTemplateUsed(response, 'posts/post_detail.html')
+
+    def test_post_edit_template(self):
+        response = (self.authorized_client.get(
+            reverse('posts:post_edit', args=[ViewsTest.post.id])))
+        self.assertTemplateUsed(response, 'posts/post_create.html')
+
+    def test_post_create_template(self):
+        response = (self.authorized_client.get(
+            reverse('posts:post_create')))
+        self.assertTemplateUsed(response, 'posts/post_create.html')
+
+    def test_index_paginator(self):
+        response = self.authorized_client.get(reverse('posts:index'))
+        self.assertEqual(len(response.context['page_obj']),
+                         Post.objects.count())
+
+    def test_profile_paginator(self):
+        response = (self.authorized_client.get(
+            reverse('posts:profile', args=[ViewsTest.author.username])))
+        self.assertEqual(len(response.context['page_obj']),
+                         Post.objects.filter(author=ViewsTest.author).count())
+
+    def test_group_list_paginator(self):
+        response = (self.authorized_client.get(
+            reverse('posts:group_posts', args=[ViewsTest.group.slug])))
+        self.assertEqual(len(response.context['page_obj']),
+                         Post.objects.filter(group=ViewsTest.group).count())
+
+    def test_index_context(self):
+        response = self.authorized_client.get(reverse('posts:index'))
+        current_post = response.context['page_obj'][0]
+        PARAMS = {
+            'text': 'Тестовый текст',
+            'author': ViewsTest.author,
+            'group': ViewsTest.group
+        }
+        for parameter, expected_value in PARAMS.items():
+            with self.subTest(parameter=parameter):
+                self.assertEqual(
+                    getattr(current_post, parameter), expected_value)
+
+    def test_group_post_context(self):
+        response = (self.authorized_client.get(reverse(
+            'posts:group_posts', args=['group-slug'])))
+        group = response.context['group']
+        posts = response.context['page_obj'][0]
+        self.assertEqual(group, ViewsTest.group)
+        self.assertEqual(posts.text, 'Тестовый текст')
+        self.assertEqual(posts.group, ViewsTest.group)
+        self.assertEqual(posts.author, ViewsTest.author)
 
     def test_profile_context(self):
-        response = self.authorized_client.get(reverse('posts:profile',
-                                                      kwargs={
-                                                          'username':
-                                                              'HasNoName'}))
-        first_object = response.context['page_obj'][0]
-        author_0 = first_object.author.username
-        test_0 = first_object.text
-        slug_0 = first_object.group.slug
-        user_nickname = response.context['author'].username
-        self.assertEqual(user_nickname, 'HasNoName')
-        self.assertEqual(author_0, 'HasNoName')
-        self.assertEqual(test_0, 'Текст')
-        self.assertEqual(slug_0, 'group-slug')
+        response = (self.authorized_client.get(reverse(
+            'posts:profile', args=[ViewsTest.author.username])))
+        author = response.context['author']
+        posts = response.context['page_obj'][0]
+        self.assertEqual(author, ViewsTest.author)
+        self.assertEqual(posts.text, 'Тестовый текст')
+        self.assertEqual(posts.group, ViewsTest.group)
+        self.assertEqual(posts.author, ViewsTest.author)
 
-    def test_post_detail_context(self):
-        response = self.authorized_client.get(reverse('posts:post_detail',
-                                                      kwargs={
-                                                          'post_id': '1'}))
-        first_object = response.context['post']
-        author = first_object.author.username
-        test = first_object.text
-        slug = first_object.group.slug
-        self.assertEqual(author, 'HasNoName')
-        self.assertEqual(test, 'Текст')
-        self.assertEqual(slug, 'group-slug')
-
-    def test_create_context(self):
-        response = self.authorized_client.get(reverse('posts:post_create'))
-        form_fields = {
-            'text': forms.fields.CharField,
-            'group': forms.fields.ChoiceField
-        }
-
-        for value, expected in form_fields.items():
-            with self.subTest(value=value):
-                form_field = response.context.get('form').fields.get(value)
-                self.assertIsInstance(form_field, expected)
-
-    def test_create_edit_context(self):
-        response = self.authorized_client.get(reverse('posts:post_edit',
-                                                      kwargs={
-                                                          'post_id': '1'}))
-        form_fields = {
-            'text': forms.fields.CharField,
-            'group': forms.fields.ChoiceField
-        }
-
-        for value, expected in form_fields.items():
-            with self.subTest(value=value):
-                form_field = response.context.get('form').fields.get(value)
-                self.assertIsInstance(form_field, expected)
-
-    def test_post_paginator(self):
-        response = self.client.get(reverse('posts:index'))
-        self.assertEqual(len(response.context['page_obj']), 1)
-
-    def test_grou_list_paginator(self):
-        response = self.client.get(reverse('posts:group_posts',
-                                           kwargs={
-                                               'slug': 'group-slug'}))
-        self.assertEqual(len(response.context['page_obj']), 1)
-
-    def test_post_paginator(self):
-        response = self.client.get(reverse('posts:profile',
-                                           kwargs={
-                                               'username': 'HasNoName'}))
-        self.assertEqual(len(response.context['page_obj']), 1)
-
-    def test_post_has_group(self):
-        Post.objects.create(
-            id='2',
-            author=User.objects.get(username='HasNoName'),
-            text='test-text',
-            group=Group.objects.get(slug='group-slug')
-        )
-        self.assertEqual(1, 1, '1!=1')
+    def text_post_detail_context(self):
+        response = (self.authorized_client.get(reverse(
+            'posts:post_detail', args=[ViewsTest.post.id])))
+        posts = response.context['page_obj'][0]
+        self.assertEqual(posts.text, 'Тестовый текст')
+        self.assertEqual(posts.group, ViewsTest.group)
+        self.assertEqual(posts.author, ViewsTest.author)
