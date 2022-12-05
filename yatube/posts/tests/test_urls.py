@@ -84,4 +84,3 @@ class URLSTests(TestCase):
         for request, expected_template in self.TEMPLATES.items():
             response = request
             self.assertTemplateUsed(response, expected_template)
-        
