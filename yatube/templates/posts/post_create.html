@@ -14,7 +14,7 @@
             {% if is_edit %}Изменить пост{% else %}Новый пост{% endif %}              
           </div>
           <div class="card-body">        
-               <form action="" method="post">
+            <form action="" method="post">
               {% csrf_token %}     
               {{ form.non_field.errors }}
               {% for item in form %}

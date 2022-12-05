@@ -18,12 +18,10 @@ class ModelTests(TestCase):
             slug='group-slug'
         )
 
-    def test_nasd(self):
+    def test_str_function(self):
         object_names = [
             (ModelTests.post, ModelTests.post.text),
             (ModelTests.group, ModelTests.group.title)
         ]
-        for i in range(len(object_names)):
-            task = object_names[i][0]
-            expected_object_name = object_names[i][1][:15]
-            self.assertEqual(expected_object_name, str(task))
+        for task, text in object_names:
+            self.assertEqual(text[:15], str(task))
