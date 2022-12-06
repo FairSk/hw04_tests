@@ -3,6 +3,17 @@ from django.urls import reverse
 
 from ..models import Group, Post, User
 
+# Я в душе не чаю, как в этом файле
+# нормально сделать тесты
+SLUG = 'group-slug'
+ANOTHER_SLUG = 'another-group-slug'
+USERNAME = 'Author'
+index = reverse('posts:index')
+create = reverse('posts:post_create')
+group_post = reverse('posts:group_posts', args=[SLUG])
+profile = reverse('posts:profile', args=[USERNAME])
+another_group_post = reverse('posts:group_posts', args=[ANOTHER_SLUG])
+
 
 class ViewsTest(TestCase):
     @classmethod
@@ -14,7 +25,7 @@ class ViewsTest(TestCase):
             description='Тестовое описание',
             slug='group-slug'
         )
-        cls.anotherGroup = Group.objects.create(
+        cls.another_group = Group.objects.create(
             title='Другой тестовый заголовок',
             description='Другое тестовое описание',
             slug='another-group-slug'
@@ -24,12 +35,9 @@ class ViewsTest(TestCase):
             author=ViewsTest.author,
             group=ViewsTest.group
         )
-        bulk_list = []
-        for i in range(0, 15):
-            bulk_list += [Post(
-                text='Тестовый текст',
-                author=ViewsTest.author,
-                group=ViewsTest.group)]
+        bulk_list = ([Post(text=f'Тестовый текст для паджинатора №{item}',
+                           author=ViewsTest.author, group=ViewsTest.group)
+                      for item in range(1, 16)])
         Post.objects.bulk_create(bulk_list)
 
     def setUp(self):
@@ -38,35 +46,46 @@ class ViewsTest(TestCase):
         self.authorized_client.force_login(ViewsTest.author)
         self.POSTS_PER_PAGE = 10
 
-        self.index = reverse('posts:index')
-        self.create = reverse('posts:post_create')
         self.edit = reverse('posts:post_edit', args=[self.post.id])
-        self.group_post = reverse('posts:group_posts', args=[self.group.slug])
-        self.another_group_post = reverse('posts:group_posts',
-                                          args=[self.anotherGroup.slug])
-        self.profile = reverse('posts:profile', args=[self.author.username])
         self.detail = reverse('posts:post_detail', args=[self.post.id])
 
     def test_first_page_paginators(self):
-        for i in [self.index, self.group_post, self.profile]:
-            response = self.client.get(i)
-            self.assertEqual(len(response.context['page_obj']),
-                             self.POSTS_PER_PAGE)
+        for item in [index, group_post, profile]:
+            with self.subTest(item=item):
+                response = self.authorized_client.get(item)
+                self.assertEqual(len(response.context['page_obj']),
+                                 self.POSTS_PER_PAGE)
 
     def test_second_page_paginators(self):
-        for i in [self.index, self.group_post, self.profile]:
-            response = self.client.get(i + '?page=2')
+        for item in [index, group_post, profile]:
+            response = self.authorized_client.get(item + '?page=2')
             (self.assertEqual(len(response.context['page_obj']),
                               Post.objects.count() - self.POSTS_PER_PAGE))
 
-    def test_contexts_with_paginator(self):
-        for i in [self.index, self.group_post, self.profile]:
-            response = self.authorized_client.get(i)
-            # Без понятия как сделать правку с 'page_obj'
-            current_post = response.context['page_obj'][0]
-            self.assertEqual(current_post.text, self.post.text)
-            self.assertEqual(current_post.author, self.post.author)
-            self.assertEqual(current_post.group, self.post.group)
+    def test_contexts_index(self):
+        response = self.authorized_client.get(index + '?page=2')
+        post = response.context['page_obj'][5]
+        self.assertEqual(post.text, self.post.text)
+        self.assertEqual(post.author, self.post.author)
+        self.assertEqual(post.group, self.post.group)
+
+    def test_contexts_group(self):
+        response = self.authorized_client.get(group_post + '?page=2')
+        post = response.context['page_obj'][5]
+        group = response.context['group']
+        self.assertEqual(group, self.group)
+        self.assertEqual(post.text, self.post.text)
+        self.assertEqual(post.author, self.post.author)
+        self.assertEqual(post.group, self.post.group)
+
+    def test_contexts_profile(self):
+        response = self.authorized_client.get(profile + '?page=2')
+        post = response.context['page_obj'][5]
+        author = response.context['author']
+        self.assertEqual(author, self.author)
+        self.assertEqual(post.text, self.post.text)
+        self.assertEqual(post.author, self.post.author)
+        self.assertEqual(post.group, self.post.group)
 
     def text_contexts_other_pages(self):
         response = self.authorized_client.get(self.detail)
@@ -76,6 +95,6 @@ class ViewsTest(TestCase):
         self.assertEqual(current_post.group, self.post.group)
 
     def test_post_is_not_in_other_group(self):
-        response = self.authorized_client.get(self.another_group_post)
-        current_post = response.context['page_obj']
-        self.assertEqual(len(current_post), 0)
+        response = self.authorized_client.get(another_group_post)
+        current_post = list(response.context['page_obj'])
+        self.assertTrue(self.post not in current_post)

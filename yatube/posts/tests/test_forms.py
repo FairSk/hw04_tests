@@ -4,9 +4,14 @@ from django.urls import reverse
 
 from ..models import Group, Post, User
 
+SLUG = 'group-slug'
+USERNAME = 'Author'
+index = reverse('posts:index')
+create = reverse('posts:post_create')
+group_post = reverse('posts:group_posts', args=[SLUG])
+profile = reverse('posts:profile', args=[USERNAME])
 
-# Сказать честно, я так много раз менял этот код,
-# что сам не понимаю, что тут происходит, но тест проходит
+
 class FormsTest(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -35,12 +40,7 @@ class FormsTest(TestCase):
         self.not_author = Client()
         self.authorized_client.force_login(self.author)
         self.not_author.force_login(self.no_author)
-
-        self.index = reverse('posts:index')
-        self.create = reverse('posts:post_create')
         self.edit = reverse('posts:post_edit', args=[self.post.id])
-        self.group_post = reverse('posts:group_posts', args=[self.group.slug])
-        self.profile = reverse('posts:profile', args=[self.author.username])
         self.detail = reverse('posts:post_detail', args=[self.post.id])
 
     def test_create_post_form(self):
@@ -49,18 +49,18 @@ class FormsTest(TestCase):
             'text': 'Текст для нового поста',
             'group': self.group.id
         }
-        response = (self.authorized_client.post(self.create,
+        response = (self.authorized_client.post(create,
                                                 data=form_data, follow=True))
+        current_post = response.context['page_obj'][0]
+        creating_cheker = Post.objects.filter(text=form_data['text']).exists()
         after_creating = Post.objects.count()
-        post = Post.objects.get(id='2')
-        self.assertEqual(post.text, form_data['text'])
-        self.assertEqual(post.author, self.author)
-        self.assertEqual(post.group.id, form_data['group'])
-        # Не понимаю, как проверить, что изменило количество постов,
-        # кроме этого варианта
+        self.assertTrue(creating_cheker)
+        self.assertEqual(current_post.text, form_data['text'])
+        self.assertEqual(current_post.author, self.author)
+        self.assertEqual(current_post.group.id, form_data['group'])
         self.assertEqual(before_creating + 1, after_creating)
         self.assertEqual(response.status_code, 200)
-        self.assertRedirects(response, self.profile)
+        self.assertRedirects(response, profile)
 
     def test_edit_post_form(self):
         form_data = {
@@ -69,8 +69,8 @@ class FormsTest(TestCase):
         }
         response = (self.authorized_client.post(self.edit,
                                                 data=form_data, follow=True))
-        post = Post.objects.get(id=self.post.id)
-        self.assertEqual(post.text, form_data['text'])
-        self.assertEqual(post.author, self.author)
-        self.assertEqual(post.group.id, form_data['group'])
+        current_post = Post.objects.get(id=self.post.id)
+        self.assertEqual(current_post.text, form_data['text'])
+        self.assertEqual(current_post.author, self.post.author)
+        self.assertEqual(current_post.group.id, form_data['group'])
         self.assertRedirects(response, self.detail)
