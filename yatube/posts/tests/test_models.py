@@ -20,8 +20,9 @@ class ModelTests(TestCase):
 
     def test_str_function(self):
         object_names = [
-            (ModelTests.post, self.post.text, 15),
-            (ModelTests.group, self.group.title, 20)
+            (self.post, self.post.text, 15),
+            (self.group, self.group.title, 20)
         ]
         for task, text, cut in object_names:
-            self.assertEqual(text[:cut], str(task))
+            with self.subTest(text=text):
+                self.assertEqual(text[:cut], str(task))

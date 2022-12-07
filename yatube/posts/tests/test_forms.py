@@ -6,9 +6,9 @@ from ..models import Group, Post, User
 
 SLUG = 'group-slug'
 USERNAME = 'Author'
-INDEX = reverse('posts:index')
-CREATE = reverse('posts:post_create')
-GROUP_POST = reverse('posts:group_posts', args=[SLUG])
+INDEX_URL = reverse('posts:index')
+CREATE_URL = reverse('posts:post_create')
+GROUP_POST_URL = reverse('posts:group_posts', args=[SLUG])
 PROFILE_ULR = reverse('posts:profile', args=[USERNAME])
 
 
@@ -49,16 +49,16 @@ class FormsTest(TestCase):
             'group': self.group.id
         }
         before_creating = set(Post.objects.all())
-        response = self.authorized_client.post(CREATE,
+        response = self.authorized_client.post(CREATE_URL,
                                                data=form_data, follow=True)
         after_creating = set(Post.objects.all())
+        posts_count_difference = len(after_creating) - len(before_creating)
         post = after_creating.difference(before_creating).pop()
         self.assertEqual(post.text, form_data['text'])
+        self.assertEqual(posts_count_difference, 1)
         self.assertEqual(post.author, self.author)
         self.assertEqual(post.group.id, form_data['group'])
         self.assertEqual(response.status_code, 200)
-        self.assertTrue((post in after_creating)
-                        and (len(after_creating) - len(before_creating) == 1))
         self.assertRedirects(response, PROFILE_ULR)
 
     def test_edit_post_form(self):
