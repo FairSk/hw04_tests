@@ -5,17 +5,17 @@ from ..models import Group, Post, User
 
 SLUG = 'group-slug'
 USERNAME = 'Author'
-index = reverse('posts:index')
-create = reverse('posts:post_create')
-group_post = reverse('posts:group_posts', args=[SLUG])
-profile = reverse('posts:profile', args=[USERNAME])
+INDEX = reverse('posts:index')
+CREATE = reverse('posts:post_create')
+GROUP_POST = reverse('posts:group_posts', args=[SLUG])
+PROFILE_ULR = reverse('posts:profile', args=[USERNAME])
 
 
 class URLSTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.author_user = User.objects.create(username='Author')
+        cls.author_user = User.objects.create(username=USERNAME)
         cls.no_author = User.objects.create(username='NotAuthor')
         cls.post = Post.objects.create(
             text='Тестовый текст',
@@ -26,6 +26,8 @@ class URLSTests(TestCase):
             description='Тестовое описание',
             slug='group-slug'
         )
+        cls.EDIT = reverse('posts:post_edit', args=[URLSTests.post.id])
+        cls.DETAIL_URL = reverse('posts:post_detail', args=[URLSTests.post.id])
 
     def setUp(self):
         self.guest_client = Client()
@@ -33,63 +35,54 @@ class URLSTests(TestCase):
         self.not_author = Client()
         self.authorized_client.force_login(self.author_user)
         self.not_author.force_login(self.no_author)
-        self.edit = reverse('posts:post_edit', args=[self.post.id])
-        self.detail = reverse('posts:post_detail', args=[self.post.id])
 
     def test_pages_access_for_guest(self):
-        ACCESSES = {
-            index: 200,
-            group_post: 200,
-            profile: 200,
-            create: 302,
-            self.detail: 200,
-            self.edit: 302,
-        }
-        for request, expected_code in ACCESSES.items():
-            response = self.guest_client.get(request)
-            self.assertEqual(response.status_code, expected_code)
-
-    def test_pages_access_for_not_author(self):
-        response = self.not_author.get(self.edit)
-        self.assertEqual(response.status_code, 302)
-
-    def test_pages_access_for_author(self):
-        ACCESSES = {
-            index: 200,
-            group_post: 200,
-            profile: 200,
-            create: 200,
-            self.detail: 200,
-            self.edit: 200,
-            '/404/': 404,
-        }
-        for request, expected_code in ACCESSES.items():
-            response = self.authorized_client.get(request)
-            self.assertEqual(response.status_code, expected_code)
+        ACCESSES = [
+            (INDEX, self.guest_client, 200),
+            (GROUP_POST, self.guest_client, 200),
+            (PROFILE_ULR, self.guest_client, 200),
+            (CREATE, self.guest_client, 302),
+            (self.DETAIL_URL, self.guest_client, 200),
+            (self.EDIT, self.guest_client, 302),
+            (INDEX, self.authorized_client, 200),
+            (GROUP_POST, self.authorized_client, 200),
+            (PROFILE_ULR, self.authorized_client, 200),
+            (CREATE, self.authorized_client, 200),
+            (self.DETAIL_URL, self.authorized_client, 200),
+            (self.EDIT, self.authorized_client, 200),
+            ('/404/', self.authorized_client, 404),
+            (self.EDIT, self.not_author, 302)
+        ]
+        for url, user, expected_code in ACCESSES:
+            with self.subTest(url=url):
+                response = user.get(url)
+                self.assertEqual(response.status_code, expected_code)
 
     def test_redirects(self):
-        REDIRECTS = {
-            self.not_author.get(self.edit): self.detail,
-            # Я тут попытался как-то изменить реверс ссылку,
-            # но не получилось
-            self.guest_client.get(create): (reverse('users:login')
-                                            + '?next=/create/'),
-            self.guest_client.get(self.edit): (reverse('users:login')
-                                               + '?next=/posts/1/edit/')
-        }
-        for request, expected_redirect in REDIRECTS.items():
-            response = request
-            self.assertRedirects(response, expected_redirect)
+        REDIRECTS = [
+            (self.EDIT, self.not_author, self.DETAIL_URL),
+            # Я ваще без понятия как в реверс сделать передать аргумент
+            # '?next=/posts/1/edit/'
+            (CREATE, self.guest_client, (reverse('users:login')
+                                         + '?next=/create/')),
+            (self.EDIT, self.guest_client, (reverse('users:login')
+                                            + '?next=/posts/1/edit/')),
+        ]
+        for url, user, redirect_page in REDIRECTS:
+            with self.subTest(url=url):
+                response = user.get(url)
+                self.assertRedirects(response, redirect_page)
 
     def test_templates(self):
         TEMPLATES = {
-            index: 'posts/index.html',
-            group_post: 'posts/group_list.html',
-            profile: 'posts/profile.html',
-            create: 'posts/post_create.html',
-            self.detail: 'posts/post_detail.html',
-            self.edit: 'posts/post_create.html'
+            INDEX: 'posts/index.html',
+            GROUP_POST: 'posts/group_list.html',
+            PROFILE_ULR: 'posts/profile.html',
+            CREATE: 'posts/post_create.html',
+            self.DETAIL_URL: 'posts/post_detail.html',
+            self.EDIT: 'posts/post_create.html'
         }
         for request, expected_template in TEMPLATES.items():
-            response = self.authorized_client.get(request)
-            self.assertTemplateUsed(response, expected_template)
+            with self.subTest(request=request):
+                response = self.authorized_client.get(request)
+                self.assertTemplateUsed(response, expected_template)

@@ -2,99 +2,87 @@ from django.test import TestCase, Client
 from django.urls import reverse
 
 from ..models import Group, Post, User
+from ..views import POSTS_PER_PAGE
 
-# Я в душе не чаю, как в этом файле
-# нормально сделать тесты
 SLUG = 'group-slug'
 ANOTHER_SLUG = 'another-group-slug'
 USERNAME = 'Author'
-index = reverse('posts:index')
-create = reverse('posts:post_create')
-group_post = reverse('posts:group_posts', args=[SLUG])
-profile = reverse('posts:profile', args=[USERNAME])
-another_group_post = reverse('posts:group_posts', args=[ANOTHER_SLUG])
+INDEX = reverse('posts:index')
+CREATE = reverse('posts:post_create')
+GROUP_POST = reverse('posts:group_posts', args=[SLUG])
+PROFILE_ULR = reverse('posts:profile', args=[USERNAME])
+ANOTHER_GROUP_POST = reverse('posts:group_posts', args=[ANOTHER_SLUG])
 
 
 class ViewsTest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.author = User.objects.create(username='Author')
+        cls.author = User.objects.create(username=USERNAME)
         cls.group = Group.objects.create(
             title='Тестовый заголовок',
             description='Тестовое описание',
-            slug='group-slug'
+            slug=SLUG
         )
         cls.another_group = Group.objects.create(
             title='Другой тестовый заголовок',
             description='Другое тестовое описание',
-            slug='another-group-slug'
+            slug=ANOTHER_SLUG
         )
         cls.post = Post.objects.create(
             text='Тестовый текст',
             author=ViewsTest.author,
             group=ViewsTest.group
         )
-        bulk_list = ([Post(text=f'Тестовый текст для паджинатора №{item}',
-                           author=ViewsTest.author, group=ViewsTest.group)
-                      for item in range(1, 16)])
-        Post.objects.bulk_create(bulk_list)
+        cls.EDIT = reverse('posts:post_edit', args=[ViewsTest.post.id])
+        cls.DETAIL_URL = reverse('posts:post_detail',
+                                 args=[ViewsTest.post.id])
 
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(ViewsTest.author)
-        self.POSTS_PER_PAGE = 10
 
-        self.edit = reverse('posts:post_edit', args=[self.post.id])
-        self.detail = reverse('posts:post_detail', args=[self.post.id])
+    def test_paginators(self):
+        Post.objects.bulk_create(
+            ([Post(text=f'Тестовый текст для паджинатора №{item}',
+                   author=ViewsTest.author, group=ViewsTest.group)
+              for item in range(POSTS_PER_PAGE)]))
+        PAGINATOR_PAGES = [
+            (INDEX, '', POSTS_PER_PAGE),
+            (GROUP_POST, '', POSTS_PER_PAGE),
+            (PROFILE_ULR, '', POSTS_PER_PAGE),
+            (INDEX, '?page=2', Post.objects.count() - POSTS_PER_PAGE),
+            (GROUP_POST, '?page=2', Post.objects.count() - POSTS_PER_PAGE),
+            (PROFILE_ULR, '?page=2', Post.objects.count() - POSTS_PER_PAGE),
+        ]
+        for url, page_num, objects in PAGINATOR_PAGES:
+            with self.subTest(url=url):
+                response = self.authorized_client.get(url + page_num)
+                self.assertEqual(len(response.context['page_obj']), objects)
 
-    def test_first_page_paginators(self):
-        for item in [index, group_post, profile]:
-            with self.subTest(item=item):
-                response = self.authorized_client.get(item)
-                self.assertEqual(len(response.context['page_obj']),
-                                 self.POSTS_PER_PAGE)
-
-    def test_second_page_paginators(self):
-        for item in [index, group_post, profile]:
-            response = self.authorized_client.get(item + '?page=2')
-            (self.assertEqual(len(response.context['page_obj']),
-                              Post.objects.count() - self.POSTS_PER_PAGE))
-
-    def test_contexts_index(self):
-        response = self.authorized_client.get(index + '?page=2')
-        post = response.context['page_obj'][5]
-        self.assertEqual(post.text, self.post.text)
-        self.assertEqual(post.author, self.post.author)
-        self.assertEqual(post.group, self.post.group)
-
-    def test_contexts_group(self):
-        response = self.authorized_client.get(group_post + '?page=2')
-        post = response.context['page_obj'][5]
-        group = response.context['group']
-        self.assertEqual(group, self.group)
-        self.assertEqual(post.text, self.post.text)
-        self.assertEqual(post.author, self.post.author)
-        self.assertEqual(post.group, self.post.group)
-
-    def test_contexts_profile(self):
-        response = self.authorized_client.get(profile + '?page=2')
-        post = response.context['page_obj'][5]
-        author = response.context['author']
-        self.assertEqual(author, self.author)
-        self.assertEqual(post.text, self.post.text)
-        self.assertEqual(post.author, self.post.author)
-        self.assertEqual(post.group, self.post.group)
-
-    def text_contexts_other_pages(self):
-        response = self.authorized_client.get(self.detail)
-        current_post = response.context['post'][0]
-        self.assertEqual(current_post.text, self.post.text)
-        self.assertEqual(current_post.author, self.post.author)
-        self.assertEqual(current_post.group, self.post.group)
+    def test_contexts_other_pages(self):
+        URLS = [
+            (INDEX, 'page_obj', None),
+            (GROUP_POST, 'page_obj', None),
+            (GROUP_POST, 'group', self.group),
+            (PROFILE_ULR, 'page_obj', None),
+            (PROFILE_ULR, 'author', self.author),
+            (self.DETAIL_URL, 'post', self.post),
+        ]
+        for url, context, equals_to in URLS:
+            with self.subTest(url=url):
+                response = self.authorized_client.get(url)
+                if equals_to is not None:
+                    post = response.context[context]
+                    self.assertEqual(post, equals_to)
+                else:
+                    post = response.context[context][0]
+                    self.assertEqual(post.text, self.post.text)
+                    self.assertEqual(post.author, self.post.author)
+                    self.assertEqual(post.group, self.post.group)
 
     def test_post_is_not_in_other_group(self):
-        response = self.authorized_client.get(another_group_post)
-        current_post = list(response.context['page_obj'])
-        self.assertTrue(self.post not in current_post)
+        response = self.authorized_client.get(ANOTHER_GROUP_POST)
+        current_post = response.context['page_obj']
+        self.assertNotIn(self.post, current_post)
