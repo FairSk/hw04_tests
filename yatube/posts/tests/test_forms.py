@@ -52,10 +52,10 @@ class FormsTest(TestCase):
         response = self.authorized_client.post(CREATE_URL,
                                                data=form_data, follow=True)
         after_creating = set(Post.objects.all())
-        posts_count_difference = len(after_creating) - len(before_creating)
-        post = after_creating.difference(before_creating).pop()
+        differences_of_sets = after_creating.difference(before_creating)
+        self.assertEqual(len(differences_of_sets), 1)
+        post = differences_of_sets.pop()
         self.assertEqual(post.text, form_data['text'])
-        self.assertEqual(posts_count_difference, 1)
         self.assertEqual(post.author, self.author)
         self.assertEqual(post.group.id, form_data['group'])
         self.assertEqual(response.status_code, 200)

@@ -9,8 +9,7 @@ INDEX_URL = reverse('posts:index')
 CREATE_URL = reverse('posts:post_create')
 GROUP_POST_URL = reverse('posts:group_posts', args=[SLUG])
 PROFILE_ULR = reverse('posts:profile', args=[USERNAME])
-CREATE_FOR_GUESTS_URL = reverse('users:login') + '?next=/create/'
-DETAIL_FOR_GUESTS_URL = reverse('users:login') + '?next=/posts/1/edit/'
+CREATE_FOR_GUESTS_URL = reverse('users:login') + '?next=' + CREATE_URL
 
 
 class URLSTests(TestCase):
@@ -30,6 +29,8 @@ class URLSTests(TestCase):
         )
         cls.EDIT_URL = reverse('posts:post_edit', args=[URLSTests.post.id])
         cls.DETAIL_URL = reverse('posts:post_detail', args=[URLSTests.post.id])
+        cls.DETAIL_FOR_GUESTS_URL = (reverse('users:login')
+                                     + '?next=' + URLSTests.EDIT_URL)
 
     def setUp(self):
         self.guest_client = Client()
@@ -52,7 +53,7 @@ class URLSTests(TestCase):
             (self.EDIT_URL, self.not_author, 302)
         ]
         for url, user, expected_code in ACCESSES:
-            with self.subTest(url=url):
+            with self.subTest(url=url, user=user):
                 self.assertEqual(user.get(url).status_code, expected_code)
 
     def test_redirects(self):
@@ -61,10 +62,10 @@ class URLSTests(TestCase):
             # Я ваще без понятия как в реверс сделать передать аргумент
             # '?next=/posts/1/edit/'
             (CREATE_URL, self.guest_client, CREATE_FOR_GUESTS_URL),
-            (self.EDIT_URL, self.guest_client, DETAIL_FOR_GUESTS_URL),
+            (self.EDIT_URL, self.guest_client, self.DETAIL_FOR_GUESTS_URL),
         ]
         for url, user, redirect_page in REDIRECTS:
-            with self.subTest(url=url):
+            with self.subTest(url=url, user=user):
                 self.assertRedirects(user.get(url), redirect_page)
 
     def test_templates(self):

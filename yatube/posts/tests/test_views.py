@@ -48,9 +48,9 @@ class ViewsTest(TestCase):
 
     def test_paginators(self):
         Post.objects.bulk_create(
-            (Post(text=f'Тестовый текст для паджинатора №{item}',
-                  author=ViewsTest.author, group=ViewsTest.group)
-             for item in range(POSTS_PER_PAGE)))
+            Post(text=f'Тестовый текст для паджинатора №{item}',
+                 author=ViewsTest.author, group=ViewsTest.group)
+            for item in range(POSTS_PER_PAGE))
         PAGINATOR_PAGES = [
             (INDEX_URL, POSTS_PER_PAGE),
             (GROUP_POST_URL, POSTS_PER_PAGE),
@@ -69,27 +69,32 @@ class ViewsTest(TestCase):
             (INDEX_URL, 'page_obj', None),
             (GROUP_POST_URL, 'page_obj', None),
             (PROFILE_ULR, 'page_obj', None),
-            (self.DETAIL_URL, 'post', self.post),
         ]
         for url, context, equals_to in URLS:
             with self.subTest(url=url):
                 response = self.authorized_client.get(url)
-                if equals_to is not None:
-                    post = response.context[context]
-                    self.assertEqual(post, equals_to)
-                elif (Post.objects.all().count()
-                      == len(response.context[context])
-                      and Post.objects.all().count() == 1):
-                    post = response.context[context][0]
-                    self.assertEqual(post.id, self.post.id)
-                    self.assertEqual(post.text, self.post.text)
-                    self.assertEqual(post.author, self.post.author)
-                    self.assertEqual(post.group, self.post.group)
+                post = response.context[context][0]
+                self.assertEqual(post.id, self.post.id)
+                self.assertEqual(post.text, self.post.text)
+                self.assertEqual(post.author, self.post.author)
+                self.assertEqual(post.group, self.post.group)
+
+    def test_context_post_in_post(self):
+        response = self.authorized_client.get(self.DETAIL_URL)
+        post = response.context['post']
+        self.assertEqual(post.id, self.post.id)
+        self.assertEqual(post.text, self.post.text)
+        self.assertEqual(post.author, self.post.author)
+        self.assertEqual(post.group, self.post.group)
 
     def test_context_group_in_group(self):
         response = self.authorized_client.get(GROUP_POST_URL)
         group = response.context['group']
         self.assertEqual(group, self.group)
+        self.assertEqual(group.title, self.group.title)
+        self.assertEqual(group.slug, self.group.slug)
+        self.assertEqual(group.id, self.group.id)
+        self.assertEqual(group.description, self.group.description)
 
     def test_context_author_in_profile(self):
         response = self.authorized_client.get(PROFILE_ULR)

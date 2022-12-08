@@ -24,5 +24,4 @@ class ModelTests(TestCase):
             (self.group, self.group.title, 20)
         ]
         for task, text, cut in object_names:
-            with self.subTest(text=text):
-                self.assertEqual(text[:cut], str(task))
+            self.assertEqual(text[:cut], str(task))

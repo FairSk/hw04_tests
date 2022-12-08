@@ -4,18 +4,22 @@ from django.urls import reverse
 SLUG = 'group-slug'
 USERNAME = 'Author'
 POST_ID = 1
-PATHS = {
-    reverse('posts:index'): '/',
-    reverse('posts:post_create'): '/create/',
-    reverse('posts:group_posts', args=[SLUG]): '/group/group-slug/',
-    reverse('posts:profile', args=[USERNAME]): '/profile/Author/',
-    reverse('posts:post_edit', args=[POST_ID]): '/posts/1/edit/',
-    reverse('posts:post_detail', args=[POST_ID]): '/posts/1/'
-}
+PATHS = [
+    ('index', '/', None),
+    ('post_create', '/create/', None),
+    ('group_posts', '/group/group-slug/', SLUG),
+    ('profile', '/profile/Author/', USERNAME),
+    ('post_edit', '/posts/1/edit/', POST_ID),
+    ('post_detail', '/posts/1/', POST_ID)
+]
 
 
 class RoutesTests(TestCase):
     def test_routes(self):
-        for reversed_path, path in PATHS.items():
+        for url, path, arg in PATHS:
             with self.subTest(path=path):
-                self.assertEqual(reversed_path, path)
+                if arg is None:
+                    response = reverse(f'posts:{url}')
+                else:
+                    response = reverse(f'posts:{url}', args=[arg])
+                self.assertEqual(response, path)
