@@ -9,7 +9,7 @@ INDEX_URL = reverse('posts:index')
 CREATE_URL = reverse('posts:post_create')
 GROUP_POST_URL = reverse('posts:group_posts', args=[SLUG])
 PROFILE_ULR = reverse('posts:profile', args=[USERNAME])
-CREATE_FOR_GUESTS_URL = reverse('users:login') + '?next=' + CREATE_URL
+CREATE_FOR_GUESTS_URL = f"{reverse('users:login')}?next={CREATE_URL}"
 
 
 class URLSTests(TestCase):
@@ -29,8 +29,8 @@ class URLSTests(TestCase):
         )
         cls.EDIT_URL = reverse('posts:post_edit', args=[URLSTests.post.id])
         cls.DETAIL_URL = reverse('posts:post_detail', args=[URLSTests.post.id])
-        cls.DETAIL_FOR_GUESTS_URL = (reverse('users:login')
-                                     + '?next=' + URLSTests.EDIT_URL)
+        cls.DETAIL_FOR_GUESTS_URL = (f"{reverse('users:login')}"
+                                     f"?next={cls.EDIT_URL}")
 
     def setUp(self):
         self.guest_client = Client()
@@ -59,8 +59,6 @@ class URLSTests(TestCase):
     def test_redirects(self):
         REDIRECTS = [
             (self.EDIT_URL, self.not_author, self.DETAIL_URL),
-            # Я ваще без понятия как в реверс сделать передать аргумент
-            # '?next=/posts/1/edit/'
             (CREATE_URL, self.guest_client, CREATE_FOR_GUESTS_URL),
             (self.EDIT_URL, self.guest_client, self.DETAIL_FOR_GUESTS_URL),
         ]

@@ -66,26 +66,26 @@ class ViewsTest(TestCase):
 
     def test_contexts_other_pages(self):
         URLS = [
-            (INDEX_URL, 'page_obj', None),
-            (GROUP_POST_URL, 'page_obj', None),
-            (PROFILE_ULR, 'page_obj', None),
+            (INDEX_URL, 'page_obj'),
+            (GROUP_POST_URL, 'page_obj'),
+            (PROFILE_ULR, 'page_obj'),
+            (self.DETAIL_URL, 'post')
         ]
-        for url, context, equals_to in URLS:
+        for url, context in URLS:
             with self.subTest(url=url):
                 response = self.authorized_client.get(url)
-                post = response.context[context][0]
+                post = response.context.get(context)
+                posts_count = Post.objects.count()
+                if not isinstance(post, Post) and posts_count >= 1:
+                    post_list = list(post)
+                    for item in post_list:
+                        if item == self.post:
+                            post = item
+                            break
                 self.assertEqual(post.id, self.post.id)
                 self.assertEqual(post.text, self.post.text)
                 self.assertEqual(post.author, self.post.author)
                 self.assertEqual(post.group, self.post.group)
-
-    def test_context_post_in_post(self):
-        response = self.authorized_client.get(self.DETAIL_URL)
-        post = response.context['post']
-        self.assertEqual(post.id, self.post.id)
-        self.assertEqual(post.text, self.post.text)
-        self.assertEqual(post.author, self.post.author)
-        self.assertEqual(post.group, self.post.group)
 
     def test_context_group_in_group(self):
         response = self.authorized_client.get(GROUP_POST_URL)
@@ -93,15 +93,13 @@ class ViewsTest(TestCase):
         self.assertEqual(group, self.group)
         self.assertEqual(group.title, self.group.title)
         self.assertEqual(group.slug, self.group.slug)
-        self.assertEqual(group.id, self.group.id)
         self.assertEqual(group.description, self.group.description)
 
     def test_context_author_in_profile(self):
         response = self.authorized_client.get(PROFILE_ULR)
-        author = response.context['author']
-        self.assertEqual(author, self.author)
+        self.assertEqual(response.context['author'], self.author)
 
     def test_post_is_not_in_other_group(self):
         response = self.authorized_client.get(ANOTHER_GROUP_POST_URL)
-        group = response.context['page_obj']
-        self.assertNotIn(self.post, group)
+        post = response.context['page_obj']
+        self.assertNotIn(self.post, post)
