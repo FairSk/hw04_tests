@@ -9,7 +9,8 @@ INDEX_URL = reverse('posts:index')
 CREATE_URL = reverse('posts:post_create')
 GROUP_POST_URL = reverse('posts:group_posts', args=[SLUG])
 PROFILE_ULR = reverse('posts:profile', args=[USERNAME])
-CREATE_FOR_GUESTS_URL = f"{reverse('users:login')}?next={CREATE_URL}"
+LOGIN_URL = reverse('users:login')
+CREATE_FOR_GUESTS_URL = f"{LOGIN_URL}?next={CREATE_URL}"
 
 
 class URLSTests(TestCase):
@@ -29,8 +30,7 @@ class URLSTests(TestCase):
         )
         cls.EDIT_URL = reverse('posts:post_edit', args=[URLSTests.post.id])
         cls.DETAIL_URL = reverse('posts:post_detail', args=[URLSTests.post.id])
-        cls.DETAIL_FOR_GUESTS_URL = (f"{reverse('users:login')}"
-                                     f"?next={cls.EDIT_URL}")
+        cls.DETAIL_FOR_GUESTS_URL = (f"{LOGIN_URL}?next={cls.EDIT_URL}")
 
     def setUp(self):
         self.guest_client = Client()

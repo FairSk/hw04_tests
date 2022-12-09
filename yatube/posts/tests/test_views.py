@@ -74,14 +74,12 @@ class ViewsTest(TestCase):
         for url, context in URLS:
             with self.subTest(url=url):
                 response = self.authorized_client.get(url)
-                post = response.context.get(context)
-                posts_count = Post.objects.count()
-                if not isinstance(post, Post) and posts_count >= 1:
-                    post_list = list(post)
-                    for item in post_list:
-                        if item == self.post:
-                            post = item
-                            break
+                if context == 'page_obj':
+                    paginator_page = response.context.get(context)
+                    self.assertEqual(len(list(paginator_page)), 1)
+                    post = paginator_page[0]
+                elif context == 'post':
+                    post = response.context.get(context)
                 self.assertEqual(post.id, self.post.id)
                 self.assertEqual(post.text, self.post.text)
                 self.assertEqual(post.author, self.post.author)
