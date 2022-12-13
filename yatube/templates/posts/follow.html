@@ -1,16 +1,11 @@
 {% extends 'base.html' %}
 {% load thumbnail %}
 
-
-{% block title %}
-  {{ group.title }}
-{% endblock %}
-
+{% block title %}Последние обновления на сайте{% endblock %}
 {% block content %}
-  <h1> {{ group.title}} </h1>
-  <p>{{group.description|linebreaks }}</p>
+  {% include 'posts/includes/switcher.html' %}
   {% for post in page_obj %}
-    <ul>
+  <ul>
       <li> 
         Автор:
         <a href="{% url 'posts:profile' post.author.username %}"> {{ post.author.username }}</a>
@@ -23,6 +18,9 @@
             <img src="{{ im.url }}" width="{{ im.width }}" height="{{ im.height }}">
     {% endthumbnail %} 
     <p>{{ post.text|linebreaks }}</p>    
+    {% if post.group %}   
+      <a href="{% url 'posts:group_posts' post.group.slug %}">#{{ post.group.title }}</a>
+    {% endif %}
     {% if not forloop.last %}<hr>{% endif %}
   {% endfor %}
   {% include 'posts/includes/paginator.html' %}

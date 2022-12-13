@@ -76,7 +76,7 @@ class ViewsTest(TestCase):
                 response = self.authorized_client.get(url)
                 if context == 'page_obj':
                     paginator_page = response.context.get(context)
-                    self.assertEqual(len(list(paginator_page)), 1)
+                    self.assertEqual(len(list(paginator_page)))
                     post = paginator_page[0]
                 elif context == 'post':
                     post = response.context.get(context)
