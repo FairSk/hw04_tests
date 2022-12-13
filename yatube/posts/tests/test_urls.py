@@ -1,5 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
+from django.core.cache import cache
+
 
 from ..models import Group, Post, User
 
@@ -38,6 +40,7 @@ class URLSTests(TestCase):
         self.not_author = Client()
         self.authorized_client.force_login(self.author_user)
         self.not_author.force_login(self.no_author)
+        cache.clear()
 
     def test_pages_access_for_guest(self):
         ACCESSES = [
